@@ -19,11 +19,16 @@ let convertHeader s =
     let n = startCount '#' s
     s |> stripHeaderMarkdown |> insideTag (sprintf "h%d" n)
 
-let isBold s   = s |> startsWith "__" && s |> endsWith "__"
-let isItalic s = s |> startsWith "_"  && s |> endsWith "_"
+let isSpanTag tag s = s |> startsWith tag && s |> endsWith tag
 
-let stripBoldMarkdown (s:string) = s.Substring(2, s.Length - 4)
-let stripItalicMarkdown (s:string) = s.Substring(1, s.Length - 2)
+let isBold   = isSpanTag "__"
+let isItalic = isSpanTag "_"
+
+let stripSpanMarkdown (taglen:int) (s:string) =
+    s.Substring(taglen, s.Length - (taglen * 2))
+
+let stripBoldMarkdown   = stripSpanMarkdown 2
+let stripItalicMarkdown = stripSpanMarkdown 1
 
 let convertBold s =
     s |> stripBoldMarkdown |> insideTag "em"
@@ -42,41 +47,26 @@ let isListItem s = s |> startsWith "* " && s.Length > 2
 
 let stripListItemMarkdown (s:string) = s.Substring(2)
 
-let findBoldMarker (fromIdx:int) (s:string) =
-    s.IndexOf("__",fromIdx)
-let findItalicMarker (fromIdx:int) (s:string) =
-    s.IndexOf("_", fromIdx)
+let findSpanMarker (tag:string) (fromIdx:int) (s:string) =
+    s.IndexOf(tag, fromIdx)
 
-let hasBoldMarker   s = findBoldMarker   0 s > -1
-let hasItalicMarker s = findItalicMarker 0 s > -1
+let hasSpanMarker tag s = findSpanMarker tag 0 s > -1
 
-let findBoldSpan s =
-    if hasBoldMarker s then
-        let startIdx = findBoldMarker 0 s
-        let endIdx = findBoldMarker (startIdx+2) s
+let findTaggedSpan tag s =
+    let len = String.length tag
+    if hasSpanMarker tag s then
+        let startIdx = findSpanMarker tag 0 s
+        let endIdx = findSpanMarker tag (startIdx + len) s
         if endIdx = -1 then None else Some (startIdx,endIdx)
     else
         None
 
-let findItalicSpan s =
-    if hasItalicMarker s then
-        let startIdx = findItalicMarker 0 s
-        let endIdx = findItalicMarker (startIdx+1) s
-        if endIdx = -1 then None else Some (startIdx,endIdx)
-    else
-        None
-
-let extractBoldSpan s =
-    match findBoldSpan s with
+let extractTaggedSpan tag s =
+    let len = String.length tag
+    match findTaggedSpan tag s with
     | None -> None
     | Some (startIdx,endIdx) ->
-        Some (startIdx,endIdx,s.[startIdx+2 .. endIdx-1])
-
-let extractItalicSpan s =
-    match findItalicSpan s with
-    | None -> None
-    | Some (startIdx,endIdx) ->
-        Some (startIdx,endIdx,s.[startIdx+1 .. endIdx-1])
+        Some (startIdx,endIdx,s.[startIdx + len .. endIdx - 1])
 
 let substrBefore idx (s:string) =
     if idx <= 0 then "" else s.[..idx-1]
@@ -84,23 +74,17 @@ let substrBefore idx (s:string) =
 let substrAfter idx (s:string) =
     if idx >= s.Length then "" else s.[idx..]
 
-let convertBoldSpan s =
-    match extractBoldSpan s with
+let convertTaggedSpan tag htmlTag s =
+    match extractTaggedSpan tag s with
     | None -> s
     | Some (startIdx,endIdx,content) ->
         sprintf "%s%s%s"
             (s |> substrBefore startIdx)
-            (content |> insideTag "em")
-            (s |> substrAfter (endIdx+2))
+            (content |> insideTag htmlTag)
+            (s |> substrAfter (endIdx + String.length tag))
 
-let convertItalicSpan s =
-    match extractItalicSpan s with
-    | None -> s
-    | Some (startIdx,endIdx,content) ->
-        sprintf "%s%s%s"
-            (s |> substrBefore startIdx)
-            (content |> insideTag "i")
-            (s |> substrAfter (endIdx+1))
+let convertBoldSpan   = convertTaggedSpan "__" "em"
+let convertItalicSpan = convertTaggedSpan "_"  "i"
 
 let convertListItem s =
     let content = s |> stripListItemMarkdown

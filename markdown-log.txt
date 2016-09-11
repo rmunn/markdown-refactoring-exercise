@@ -52,3 +52,14 @@ that I have the main function refactored, I can make more incremental changes.
 (Refactoring the main function required implementing whole subsystems at once so
 that the tests continued to pass). For this step, I've added an `insideTag`
 function to DRY out all those repeated `sprintf "<tag>%s</tag>"` calls.
+
+## Step 5
+
+This time I eliminated one of the two major code duplications around bold and
+italic tags. There's no reason to have two code paths whose only difference is
+whether you're looking for a pair of `__` strings or a pair of `_` strings, and
+which HTML tag you assign to that Markdown span.
+
+There's still one code duplication which I've left for the next step: the fact
+that I have two checks, one for "is this entire line bold?" and one for "does
+this line contain a bold span?". The first is a special case of the second.
