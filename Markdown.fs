@@ -1,5 +1,23 @@
 ﻿module Markdown
 
+let startsWith (s:string) = s.StartsWith
+let endsWith (s:string) = s.EndsWith
+
+let startCount ch s = s |> Seq.takeWhile ((=) ch) |> Seq.length
+
+let isHeader (s:string) =
+    let cnt = startCount '#' s
+    1 <= cnt && cnt <= 6 && s.Length > cnt && s.[cnt] = ' '
+
+let stripHeaderMarkDown (s:string) =
+    let cnt = startCount '#' s
+    s.Substring(cnt + 1)
+
+let parseHeader s =
+    let n = startCount '#' s
+    let contents = stripHeaderMarkDown s
+    sprintf "<h%d>%s</h%d>" n contents n
+
 let rec parse (markdown: string) =
     let mutable html = ""
     let mutable remainder = markdown
@@ -59,19 +77,8 @@ let rec parse (markdown: string) =
 
             html <- html + "</li>"
 
-        elif lines.[i].[0] = '#' then
-            if lines.[i].[0..6] = "###### " then
-                html <- html + "<h6>" + lines.[i].[7..] + "</h6>"
-            elif lines.[i].[0..5] = "##### " then
-                html <- html + "<h5>" + lines.[i].[6..] + "</h5>"
-            elif lines.[i].[0..4] = "#### " then
-                html <- html + "<h4>" + lines.[i].[5..] + "</h4>"
-            elif lines.[i].[0..3] = "### " then
-                html <- html + "<h3>" + lines.[i].[4..] + "</h3>"
-            elif lines.[i].[0..2] = "## " then
-                html <- html + "<h2>" + lines.[i].[3..] + "</h2>"
-            else
-                html <- html + "<h1>" + lines.[i].[2..] + "</h1>"
+        elif isHeader lines.[i] then
+            html <- html + parseHeader lines.[i]
         else
             let mutable line = lines.[i]
             let mutable __pos = line.IndexOf "__"

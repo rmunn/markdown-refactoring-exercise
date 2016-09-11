@@ -19,3 +19,10 @@ space of indentation from the previous line. But if I hit Tab again, I'm going
 to get *five* spaces. We'll fix this by simply adding a space to every line. In
 order to make the Git diffs of my next steps readable, I'm going to make this
 whitespace change as a separate commit.
+
+## Step 1
+
+I've gotten ahead of myself in my planning. Before creating an AST, I need to be
+able to parse Markdown correctly. Let's start with a simple one: headers. If a
+line starts with anywhere from one to six `#` characters, it's a header. The
+number of `#` characters is the level of the header, from `<h1>` to `<h6>`.
