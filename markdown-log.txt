@@ -1,0 +1,11 @@
+## First impressions
+
+That's even uglier than the Ledger.fs code was! I'm glad there are unit tests,
+because if I had to follow the logic of the code without unit tests to tell me
+what it's supposed to do, it would take me a couple of hours to work it out.
+
+My plan is to create an AST to represent a Markdown file, then write a separate
+function to format that AST as HTML. We'll see what the best way of parsing the
+original Markdown file is: either predicate functions or active patterns might
+work well. I'm going to try active patterns, though, because they usually end
+up looking cleaner than an `if pred1 then ... elif pred2 then ... else` block.
