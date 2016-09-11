@@ -9,3 +9,13 @@ function to format that AST as HTML. We'll see what the best way of parsing the
 original Markdown file is: either predicate functions or active patterns might
 work well. I'm going to try active patterns, though, because they usually end
 up looking cleaner than an `if pred1 then ... elif pred2 then ... else` block.
+
+## Step 0
+
+Before we do ANYTHING else to this file, let's fix its indentation. The entire
+`parse` function is indented by 3 spaces rather than 4, although internally it's
+indented by 4 spaces. This means that when I hit Tab in VS Code, I get just one
+space of indentation from the previous line. But if I hit Tab again, I'm going
+to get *five* spaces. We'll fix this by simply adding a space to every line. In
+order to make the Git diffs of my next steps readable, I'm going to make this
+whitespace change as a separate commit.
