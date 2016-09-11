@@ -33,3 +33,14 @@ I thought list items would be simple, but I had to also match and convert bold,
 italics, and paragraphs in order to convert list items correctly. So this step
 is slightly bigger than I'd planned. But the functions for converting italic and
 bold should come in handy in the next step.
+
+## Step 3
+
+And now paragraphs with bold and italic inside them also convert correctly, and
+the `parse` function looks good. However, we're far from done. The first problem
+that still remains is that there's a lot of code duplication. I wrote each of
+the convertFoo functions completely independently from each other, so that I'd
+be worrying only about making them work just like the original code did. But now
+that they're all written, there's a lot of common functionality we can extract.
+So the next step is going to be extracting some of that common functionality
+into its own function or functions, to DRY out this code a bit.
