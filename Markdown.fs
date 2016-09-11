@@ -1,5 +1,7 @@
 ﻿module Markdown
 
+let insideTag tag content = sprintf "<%s>%s</%s>" tag content tag
+
 let startsWith item (s:string) = s.StartsWith item
 let endsWith item (s:string) = s.EndsWith item
 
@@ -15,8 +17,7 @@ let stripHeaderMarkdown (s:string) =
 
 let convertHeader s =
     let n = startCount '#' s
-    let contents = stripHeaderMarkdown s
-    sprintf "<h%d>%s</h%d>" n contents n
+    s |> stripHeaderMarkdown |> insideTag (sprintf "h%d" n)
 
 let isBold s   = s |> startsWith "__" && s |> endsWith "__"
 let isItalic s = s |> startsWith "_"  && s |> endsWith "_"
@@ -25,17 +26,17 @@ let stripBoldMarkdown (s:string) = s.Substring(2, s.Length - 4)
 let stripItalicMarkdown (s:string) = s.Substring(1, s.Length - 2)
 
 let convertBold s =
-    s |> stripBoldMarkdown |> sprintf "<em>%s</em>"
+    s |> stripBoldMarkdown |> insideTag "em"
 
 let convertItalic s =
-    s |> stripItalicMarkdown |> sprintf "<i>%s</i>"
+    s |> stripItalicMarkdown |> insideTag "i"
 
 let isParagraph s = not (isBold s || isItalic s || isHeader s)
 
 let stripParagraphMarkdown s = s
 
 let convertParagraph s =
-    s |> stripParagraphMarkdown |> sprintf "<p>%s</p>"
+    s |> stripParagraphMarkdown |> insideTag "p"
 
 let isListItem s = s |> startsWith "* " && s.Length > 2
 
@@ -87,18 +88,18 @@ let convertBoldSpan s =
     match extractBoldSpan s with
     | None -> s
     | Some (startIdx,endIdx,content) ->
-        sprintf "%s<em>%s</em>%s"
+        sprintf "%s%s%s"
             (s |> substrBefore startIdx)
-            content
+            (content |> insideTag "em")
             (s |> substrAfter (endIdx+2))
 
 let convertItalicSpan s =
     match extractItalicSpan s with
     | None -> s
     | Some (startIdx,endIdx,content) ->
-        sprintf "%s<i>%s</i>%s"
+        sprintf "%s%s%s"
             (s |> substrBefore startIdx)
-            content
+            (content |> insideTag "i")
             (s |> substrAfter (endIdx+1))
 
 let convertListItem s =
@@ -110,7 +111,7 @@ let convertListItem s =
             convertItalic content
         else
             convertParagraph content
-    sprintf "<li>%s</li>" convertedContent
+    convertedContent |> insideTag "li"
 
 let rec parse (markdown: string) =
     let mutable html = ""

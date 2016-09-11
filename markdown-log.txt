@@ -44,3 +44,11 @@ be worrying only about making them work just like the original code did. But now
 that they're all written, there's a lot of common functionality we can extract.
 So the next step is going to be extracting some of that common functionality
 into its own function or functions, to DRY out this code a bit.
+
+## Step 4
+
+These next few steps are going to be a lot shorter than the previous steps: now
+that I have the main function refactored, I can make more incremental changes.
+(Refactoring the main function required implementing whole subsystems at once so
+that the tests continued to pass). For this step, I've added an `insideTag`
+function to DRY out all those repeated `sprintf "<tag>%s</tag>"` calls.
