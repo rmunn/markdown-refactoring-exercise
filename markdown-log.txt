@@ -108,3 +108,12 @@ and `convertFoo`. This feels like a place where active patterns are the right
 answer: an active pattern can combine `isFoo` and `stripFooMarkdown`, and its
 corresponding code on the right side of the `match` could be `convertFoo`. So
 our next refactoring step will convert this code to use active patterns.
+
+## Step 8
+
+But before we refactor to active patterns, let's simplify the list-item-wrapping
+code from the previous step. I realized that there's no real need for the tuple
+code that I set up in step 7. It's simpler to let the key function of `chunkBy`
+be the "is this a list item?" predicate (which is simple enough to write). This
+removes one step of the `parse` pipeline, and makes a couple of other steps a
+lot easier to read and understand -- and "easier to read" is a big win.

@@ -106,36 +106,34 @@ let convertListItem s =
             convertParagraph content
     convertedContent |> insideTag "li"
 
-// Returns a tuple of (HTML string, isListItem bool)
-let parseLine line =
+let convertLine line =
     if isListItem line then
-        convertListItem line, true
+        convertListItem line
 
     elif isHeader line then
-        convertHeader line, false
+        convertHeader line
 
     else
-        let content =
-            line
-            |> convertBoldSpan
-            |> convertItalicSpan
-        convertParagraph content, false
+        line
+        |> convertBoldSpan
+        |> convertItalicSpan
+        |> convertParagraph
+
+let isHtmlListItem htmlLine =
+    htmlLine |> startsWith "<li>" && htmlLine |> endsWith "</li>"
 
 // Given a chunked list of HTML segments, find the list items
-// and wrap them with "<ul>" and "</ul>". The list items will be
-// easy to spot because the parseLine function tagged them with
-// a "true" bool value during a previous pass.
-let wrapHtmlListWithOL chunk =
-    if chunk |> List.head |> snd then
-        ("<ul>", true) :: chunk @ [("</ul>", true)]
+// and wrap them with "<ul>" and "</ul>".
+let wrapHtmlListWithUL chunk =
+    if chunk |> List.head |> isHtmlListItem then
+        "<ul>" :: chunk @ ["</ul>"]
     else
         chunk
 
 let parse (markdown: string) =
     markdown.Split('\n')
     |> List.ofArray
-    |> List.map parseLine
-    |> List.chunkBy snd
-    |> List.map wrapHtmlListWithOL
-    |> List.collect (List.map fst)
+    |> List.map convertLine
+    |> List.chunkBy isHtmlListItem
+    |> List.collect wrapHtmlListWithUL
     |> String.concat ""
