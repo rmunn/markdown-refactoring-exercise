@@ -19,25 +19,6 @@ let convertHeader s =
     let n = startCount '#' s
     s |> stripHeaderMarkdown |> insideTag (sprintf "h%d" n)
 
-let isSpanTag tag s = s |> startsWith tag && s |> endsWith tag
-
-let isBold   = isSpanTag "__"
-let isItalic = isSpanTag "_"
-
-let stripSpanMarkdown (taglen:int) (s:string) =
-    s.Substring(taglen, s.Length - (taglen * 2))
-
-let stripBoldMarkdown   = stripSpanMarkdown 2
-let stripItalicMarkdown = stripSpanMarkdown 1
-
-let convertBold s =
-    s |> stripBoldMarkdown |> insideTag "em"
-
-let convertItalic s =
-    s |> stripItalicMarkdown |> insideTag "i"
-
-let isParagraph s = not (isBold s || isItalic s || isHeader s)
-
 let stripParagraphMarkdown s = s
 
 let convertParagraph s =
@@ -51,6 +32,9 @@ let findSpanMarker (tag:string) (fromIdx:int) (s:string) =
     s.IndexOf(tag, fromIdx)
 
 let hasSpanMarker tag s = findSpanMarker tag 0 s > -1
+
+let hasBold   = hasSpanMarker "__"
+let hasItalic = hasSpanMarker "_"
 
 let findTaggedSpan tag s =
     let len = String.length tag
@@ -89,10 +73,10 @@ let convertItalicSpan = convertTaggedSpan "_"  "i"
 let convertListItem s =
     let content = s |> stripListItemMarkdown
     let convertedContent =
-        if isBold content then
-            convertBold content
-        elif isItalic content then
-            convertItalic content
+        if hasBold content then
+            convertBoldSpan content
+        elif hasItalic content then
+            convertItalicSpan content
         else
             convertParagraph content
     convertedContent |> insideTag "li"

@@ -63,3 +63,26 @@ which HTML tag you assign to that Markdown span.
 There's still one code duplication which I've left for the next step: the fact
 that I have two checks, one for "is this entire line bold?" and one for "does
 this line contain a bold span?". The first is a special case of the second.
+
+## Step 6
+
+And now the other duplication of bold & italic code is gone. The code to test if
+the entire line was bold has been removed and replaced by the span-testing code.
+This doesn't actually have precisely the same semantics as the code it's
+replacing: for example, if a list item looked like `"* This has _italics_"`, the
+old code would have wrapped that in a `<p>` tag, while the new code wouldn't.
+But going by tests-as-spec, there's nothing to specify what the correct way to
+handle that list item would be. Should it have a `<p>` tag? Should it not? The
+tests don't give us a clue. So I've gone with the semantics of "If there is any
+bold or italics *anywhere* in the list item, do not wrap it in a <p> tag" for
+this particular refactoring step. That's not how it works in *real* Markdown, of
+course, but then, this *isn't* real Markdown, just a tiny subset thereof. (For
+example, in real Markdown, headers may contain bold and italics markup, but the
+original, ugly Markdown code didn't parse header contents for inline markup tags
+like bold or italics).
+
+And besides, if in the future the requirements were to change so that `"* This
+has _italics_"` should now be wrapped in a `<p>` tag... well, once I've finished
+refactoring the code here, it should be easy to change it to adjust to new spec
+requirements. That's the point of F# -- that your code is simple, easy to read,
+and easy to adjust to changing requirements.
