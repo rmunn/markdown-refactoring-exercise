@@ -1,5 +1,30 @@
 ﻿module Markdown
 
+// "Extension functions" are possible for standard modules, too
+module List =
+    /// Divide a list up into chunks by the result of a key fn.
+    /// Each chunk consists of items for which the key function
+    /// returned the same value. Once the key function returns a
+    /// new value (different from the previous item), a new chunk
+    /// will be started. But if the key function later returns
+    /// a previous value, it will start a *new* chunk, not add to
+    /// the "first" chunk.
+    /// I.e., calling `chunkBy isOdd [1; 3; 2; 4; 6; 5; 7]`
+    ///       returns `[[1; 3]; [2; 4; 6]; [5; 7]]`.
+    let chunkBy keyFun list =
+        if List.isEmpty list then [] else
+        let rec inner acc currKey list =
+          [ match list with
+            | [] -> yield (List.rev acc)
+            | x::xs ->
+                let key = keyFun x
+                if key = currKey then
+                    yield! inner (x::acc) currKey xs
+                else
+                    yield (List.rev acc)
+                    yield! inner [x] key xs ]
+        inner [] (List.head list |> keyFun) list
+
 let insideTag tag content = sprintf "<%s>%s</%s>" tag content tag
 
 let startsWith item (s:string) = s.StartsWith item
@@ -81,31 +106,36 @@ let convertListItem s =
             convertParagraph content
     convertedContent |> insideTag "li"
 
-let rec parse (markdown: string) =
-    let mutable html = ""
-    let mutable isList = false
+// Returns a tuple of (HTML string, isListItem bool)
+let parseLine line =
+    if isListItem line then
+        convertListItem line, true
 
-    let lines = markdown.Split('\n')
+    elif isHeader line then
+        convertHeader line, false
 
-    for i = 0 to lines.Length - 1 do
+    else
+        let content =
+            line
+            |> convertBoldSpan
+            |> convertItalicSpan
+        convertParagraph content, false
 
-        if isListItem lines.[i] then
-            if not isList then
-                html <- html + "<ul>"
-                isList <- true
-            html <- html + convertListItem lines.[i]
+// Given a chunked list of HTML segments, find the list items
+// and wrap them with "<ul>" and "</ul>". The list items will be
+// easy to spot because the parseLine function tagged them with
+// a "true" bool value during a previous pass.
+let wrapHtmlListWithOL chunk =
+    if chunk |> List.head |> snd then
+        ("<ul>", true) :: chunk @ [("</ul>", true)]
+    else
+        chunk
 
-        elif isHeader lines.[i] then
-            html <- html + convertHeader lines.[i]
-
-        else
-            let content =
-                lines.[i]
-                |> convertBoldSpan
-                |> convertItalicSpan
-            html <- html + convertParagraph content
-
-    if isList then
-        html <- html + "</ul>"
-
-    html
+let parse (markdown: string) =
+    markdown.Split('\n')
+    |> List.ofArray
+    |> List.map parseLine
+    |> List.chunkBy snd
+    |> List.map wrapHtmlListWithOL
+    |> List.collect (List.map fst)
+    |> String.concat ""

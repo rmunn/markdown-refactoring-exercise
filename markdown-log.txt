@@ -86,3 +86,25 @@ has _italics_"` should now be wrapped in a `<p>` tag... well, once I've finished
 refactoring the code here, it should be easy to change it to adjust to new spec
 requirements. That's the point of F# -- that your code is simple, easy to read,
 and easy to adjust to changing requirements.
+
+## Step 7
+
+Now we finally have the infrastructure in place to refactor the rest of `parse`,
+specifically its ugly build-up-a-mutable-string process. The complicated part is
+the fact that list items need to be wrapped in an HTML `<ul>` tag. In mutable
+style, this was pretty straightforward, but we needed a functional style. What I
+ended up doing was writing a generic `List.chunkBy` function, similar to the
+existing `List.chunkBySize` but that chunks based on a key function: every time
+the key function's result *changes*, you start a new chunk. Then I tagged each
+result with a bool to say whether it's a list item, chunked based on that bool,
+and put `<ul>` and `</ul>` at the start and end of chunks of list items. The
+result is a nice *functional* definition of `parse` as steps in a pipeline.
+
+This code is finally starting to look nice, and if I was pressed for time I
+might call this good enough and move on to some other part of the project. But I
+think there are more refactoring opportunities here: for example, we have a lot
+of functions that follow a common pattern. There's `isFoo`, `stripFooMarkdown`,
+and `convertFoo`. This feels like a place where active patterns are the right
+answer: an active pattern can combine `isFoo` and `stripFooMarkdown`, and its
+corresponding code on the right side of the `match` could be `convertFoo`. So
+our next refactoring step will convert this code to use active patterns.
