@@ -117,3 +117,46 @@ code that I set up in step 7. It's simpler to let the key function of `chunkBy`
 be the "is this a list item?" predicate (which is simple enough to write). This
 removes one step of the `parse` pipeline, and makes a couple of other steps a
 lot easier to read and understand -- and "easier to read" is a big win.
+
+## Step 9
+
+And now we can refactor the predicate functions to become active patterns. Each
+active pattern essentially replaces the `isFoo` and `stripFooMarkdown` functions
+from the earlier code. The `convertFoo` functions are also freed from being so
+closely tied to the specific Markdown patterns that they are named for, and so
+I was able to create functions to process "line parts" (parts of a line that
+should not be wrapped in a `<p>` tag) separated from the functions that process
+entire lines (where "plain" text *should* be wrapped in a `<p>` tag).
+
+With this step, I think the refactoring is complete. There is no duplication of
+code that I can see anywhere, and I've written several functions which would be
+useful in other parts of the project (if this code were part of a larger project
+rather than a standalone exercise). I've also been able to split the code into
+several sections which, if this code were part of a larger project, could be put
+into separate files: one file for the List.chunkBy function, another file for
+the string-handling functions, a third file for the active patterns, and a
+fourth file for the Markdown-parsing functions. The active patterns module would
+need to open the string-handling module, and the Markdown-parsing module would
+need to open all three other modules -- but there are no circular dependencies
+anywhere, so there would be no problem with splitting the file into modules.
+
+In the end, I decided not to implement the AST that I was originally planning to
+write. That would still be a possibility for further refactoring, but in this
+case I'm ready to wrap up the exercise and call it complete. I may add the AST
+as a separate "bonus" refactoring step later, after I submit this exercise. But
+the level of complexity of the current code doesn't need an AST, and in fact, if
+I had added in the AST I might be taking it out at this point so that the code
+would "read" more simply. So if I do add the AST, I will consider that a "bonus"
+step rather than part of the "main" refactoring exercise.
+
+Let's look at some numbers. The original ugly code was 112 lines long, including
+25 blank lines and 87 lines of actual code. (There were no comments). After the
+refactor, the code is now 122 lines long, including 20 blank lines, 15 comment
+lines, and 87 lines of actual code. So we have exactly as many lines of code as
+we started with -- but we've divided the code into four modules, and each module
+has some broadly-reusable functions that could be used by other code. And each
+function is short, easy to read, and easy to understand -- which means that it
+would be easy to add new features without introducing new bugs. (Which is NOT
+something that could be said about the ugly original code).
+
+I'd call that a successful refactoring exercise.

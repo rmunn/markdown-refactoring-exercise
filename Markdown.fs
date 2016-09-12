@@ -25,57 +25,12 @@ module List =
                     yield! inner [x] key xs ]
         inner [] (List.head list |> keyFun) list
 
+// String-related functions
+
 let insideTag tag content = sprintf "<%s>%s</%s>" tag content tag
 
 let startsWith item (s:string) = s.StartsWith item
 let endsWith item (s:string) = s.EndsWith item
-
-let startCount ch s = s |> Seq.takeWhile ((=) ch) |> Seq.length
-
-let isHeader (s:string) =
-    let cnt = startCount '#' s
-    1 <= cnt && cnt <= 6 && s.Length > cnt && s.[cnt] = ' '
-
-let stripHeaderMarkdown (s:string) =
-    let cnt = startCount '#' s
-    s.Substring(cnt + 1)
-
-let convertHeader s =
-    let n = startCount '#' s
-    s |> stripHeaderMarkdown |> insideTag (sprintf "h%d" n)
-
-let stripParagraphMarkdown s = s
-
-let convertParagraph s =
-    s |> stripParagraphMarkdown |> insideTag "p"
-
-let isListItem s = s |> startsWith "* " && s.Length > 2
-
-let stripListItemMarkdown (s:string) = s.Substring(2)
-
-let findSpanMarker (tag:string) (fromIdx:int) (s:string) =
-    s.IndexOf(tag, fromIdx)
-
-let hasSpanMarker tag s = findSpanMarker tag 0 s > -1
-
-let hasBold   = hasSpanMarker "__"
-let hasItalic = hasSpanMarker "_"
-
-let findTaggedSpan tag s =
-    let len = String.length tag
-    if hasSpanMarker tag s then
-        let startIdx = findSpanMarker tag 0 s
-        let endIdx = findSpanMarker tag (startIdx + len) s
-        if endIdx = -1 then None else Some (startIdx,endIdx)
-    else
-        None
-
-let extractTaggedSpan tag s =
-    let len = String.length tag
-    match findTaggedSpan tag s with
-    | None -> None
-    | Some (startIdx,endIdx) ->
-        Some (startIdx,endIdx,s.[startIdx + len .. endIdx - 1])
 
 let substrBefore idx (s:string) =
     if idx <= 0 then "" else s.[..idx-1]
@@ -83,41 +38,69 @@ let substrBefore idx (s:string) =
 let substrAfter idx (s:string) =
     if idx >= s.Length then "" else s.[idx..]
 
-let convertTaggedSpan tag htmlTag s =
-    match extractTaggedSpan tag s with
-    | None -> s
-    | Some (startIdx,endIdx,content) ->
-        sprintf "%s%s%s"
-            (s |> substrBefore startIdx)
-            (content |> insideTag htmlTag)
-            (s |> substrAfter (endIdx + String.length tag))
+let startCount ch s = s |> Seq.takeWhile ((=) ch) |> Seq.length
 
-let convertBoldSpan   = convertTaggedSpan "__" "em"
-let convertItalicSpan = convertTaggedSpan "_"  "i"
+// Active patterns for Markdown matching
 
-let convertListItem s =
-    let content = s |> stripListItemMarkdown
-    let convertedContent =
-        if hasBold content then
-            convertBoldSpan content
-        elif hasItalic content then
-            convertItalicSpan content
+let (|Header|_|) (s:string) =
+    let cnt = startCount '#' s
+    if 1 <= cnt && cnt <= 6 && s.Length > cnt && s.[cnt] = ' '
+        then Some (s.[cnt+1..],cnt)
+        else None
+
+let (|ListItem|_|) s =
+    if s |> startsWith "* " && s.Length > 2
+        then Some s.[2..]
+        else None
+
+let (|TaggedSpan|_|) (tag:string) (s:string) =
+    if s.IndexOf(tag) = -1 then
+        None
+    else
+        let len = String.length tag
+        let startIdx = s.IndexOf(tag)
+        let endIdx = s.IndexOf(tag, startIdx + len)
+        if endIdx = -1 then
+            None
         else
-            convertParagraph content
-    convertedContent |> insideTag "li"
+            Some (s |> substrBefore startIdx,
+                  s.[startIdx + len .. endIdx - 1],
+                  s |> substrAfter (endIdx + len))
+
+let (|Bold|_|)   = (|TaggedSpan|_|) "__"
+let (|Italic|_|) = (|TaggedSpan|_|) "_"
+
+// Converting Markdown to HTML
+
+let rec convertLinePart part =
+    match part with
+    | Bold (before,bolded,after) ->
+        convertTaggedSpan "em" (before,bolded,after)
+    | Italic (before,italicized,after) ->
+        convertTaggedSpan "i" (before,italicized,after)
+    | text -> text
+
+and convertTaggedSpan htmlTag (before,span,after) =
+  [ convertLinePart before
+    span |> insideTag htmlTag
+    convertLinePart after ] |> String.concat ""
+
+let convertListItem item =
+    let line = convertLinePart item
+    let line' =
+        if line |> startsWith "<" && line |> endsWith ">" then
+            line
+        else
+            line |> insideTag "p"
+    line' |> insideTag "li"
 
 let convertLine line =
-    if isListItem line then
-        convertListItem line
-
-    elif isHeader line then
-        convertHeader line
-
-    else
-        line
-        |> convertBoldSpan
-        |> convertItalicSpan
-        |> convertParagraph
+    match line with
+    | ListItem item -> convertListItem item
+    | Header (content,num) ->
+        let tag = sprintf "h%d" num
+        content |> insideTag tag
+    | text -> text |> convertLinePart |> insideTag "p"
 
 let isHtmlListItem htmlLine =
     htmlLine |> startsWith "<li>" && htmlLine |> endsWith "</li>"
