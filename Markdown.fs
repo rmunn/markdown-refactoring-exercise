@@ -40,12 +40,38 @@ let substrAfter idx (s:string) =
 
 let startCount ch s = s |> Seq.takeWhile ((=) ch) |> Seq.length
 
+// AST for Markdown text
+
+let outOfRange name value msg =
+    new System.ArgumentOutOfRangeException(name, value, msg)
+    |> raise
+
+type Int6 = Int6 of int
+let mkInt6 i =
+    if 1 <= i && i <= 6 then
+        Int6 i
+    else
+        outOfRange "i" i "Must be between 1 and 6"
+
+type InlineNodes = InlineNode list
+and InlineNode =
+    | ItalicText of InlineNodes
+    | BoldText of InlineNodes
+    | PlainText of string
+
+type WholeLineNode =
+    | HeaderNode of Int6 * InlineNodes
+    | ListStartMarker
+    | ListItemNode of InlineNodes
+    | ListEndMarker
+    | ParagraphNode of InlineNodes
+
 // Active patterns for Markdown matching
 
 let (|Header|_|) (s:string) =
     let cnt = startCount '#' s
     if 1 <= cnt && cnt <= 6 && s.Length > cnt && s.[cnt] = ' '
-        then Some (s.[cnt+1..],cnt)
+        then Some (mkInt6 cnt,s.[cnt+1..])
         else None
 
 let (|ListItem|_|) s =
@@ -70,53 +96,72 @@ let (|TaggedSpan|_|) (tag:string) (s:string) =
 let (|Bold|_|)   = (|TaggedSpan|_|) "__"
 let (|Italic|_|) = (|TaggedSpan|_|) "_"
 
-// Converting Markdown to HTML
+// Parsing Markdown into AST
 
-let rec convertLinePart part =
-    match part with
-    | Bold (before,bolded,after) ->
-        convertTaggedSpan "em" (before,bolded,after)
-    | Italic (before,italicized,after) ->
-        convertTaggedSpan "i" (before,italicized,after)
-    | text -> text
+let rec parseText text =
+    match text with
+    | "" -> []
+    | Bold (before,span,after) ->
+        parseTaggedSpan BoldText (before,span,after)
+    | Italic (before,span,after) ->
+        parseTaggedSpan ItalicText (before,span,after)
+    | _ -> [PlainText text]
 
-and convertTaggedSpan htmlTag (before,span,after) =
-  [ convertLinePart before
-    span |> insideTag htmlTag
-    convertLinePart after ] |> String.concat ""
+and parseTaggedSpan nodeConstructor (before,span,after) =
+    parseText before @
+    (parseText span |> nodeConstructor) ::
+    parseText after
 
-let convertListItem item =
-    let line = convertLinePart item
-    let line' =
-        if line |> startsWith "<" && line |> endsWith ">" then
-            line
-        else
-            line |> insideTag "p"
-    line' |> insideTag "li"
-
-let convertLine line =
+let parseLine line =
     match line with
-    | ListItem item -> convertListItem item
-    | Header (content,num) ->
-        let tag = sprintf "h%d" num
-        content |> insideTag tag
-    | text -> text |> convertLinePart |> insideTag "p"
+    | ListItem content -> ListItemNode (parseText content)
+    | Header (lvl,content) -> HeaderNode (lvl,parseText content)
+    | text -> ParagraphNode (parseText text)
 
-let isHtmlListItem htmlLine =
-    htmlLine |> startsWith "<li>" && htmlLine |> endsWith "</li>"
+// Output AST as HTML
 
-// Given a chunked list of HTML segments, find the list items
-// and wrap them with "<ul>" and "</ul>".
-let wrapHtmlListWithUL chunk =
-    if chunk |> List.head |> isHtmlListItem then
-        "<ul>" :: chunk @ ["</ul>"]
+let rec htmlFromInlineNode = function
+    | PlainText  text     -> text
+    | BoldText   contents -> contents |> htmlFromInlineNodes "em"
+    | ItalicText contents -> contents |> htmlFromInlineNodes "i"
+
+and htmlFromInlineNodes tag nodes =
+    nodes
+    |> List.map htmlFromInlineNode
+    |> String.concat ""
+    |> insideTag tag
+
+let htmlFromNode = function
+    | ParagraphNode content ->
+        content |> htmlFromInlineNodes "p"
+    | HeaderNode (Int6 level,content) ->
+        let tag = sprintf "h%d" level
+        content |> htmlFromInlineNodes tag
+    | ListItemNode content ->
+        let wrapInP = match content with
+                      | [BoldText _]
+                      | [ItalicText _] -> false
+                      | _ -> true
+        if wrapInP then
+            content |> htmlFromInlineNodes "p" |> insideTag "li"
+        else
+            content |> htmlFromInlineNodes "li"
+    | ListStartMarker -> "<ul>"
+    | ListEndMarker  -> "</ul>"
+
+let isListItem = function ListItemNode _ -> true | _ -> false
+
+let wrapListWithMarkers chunk =
+    if chunk |> List.head |> isListItem then
+        ListStartMarker :: chunk @ [ListEndMarker]
     else
         chunk
 
 let parse (markdown: string) =
     markdown.Split('\n')
     |> List.ofArray
-    |> List.map convertLine
-    |> List.chunkBy isHtmlListItem
-    |> List.collect wrapHtmlListWithUL
+    |> List.map parseLine
+    |> List.chunkBy isListItem
+    |> List.map wrapListWithMarkers
+    |> List.collect (List.map htmlFromNode)
     |> String.concat ""

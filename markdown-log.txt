@@ -160,3 +160,37 @@ would be easy to add new features without introducing new bugs. (Which is NOT
 something that could be said about the ugly original code).
 
 I'd call that a successful refactoring exercise.
+
+## Bonus step
+
+This time I created the Abstract Syntax Tree that I had originally planned. Now
+that I look at it, I still feel that this AST is overkill for this exercise: it
+makes the code a lot longer, for no particular gain in clarity. But it DOES give
+a gain in flexibility: if we were writing a larger project that had to convert
+Markdown to various formats besides HTML, such as RTF, PDF, or LaTeX... THEN the
+AST would be invaluable. Because it would mean we would could write the parsing
+code just *once*, and each version of the output code could start from the same,
+already-parsed data structure.
+
+Another thing that's interesting to note in this "bonus" step is how I wrote the
+AST. In the HeaderNode case of the AST, I followed the "make illegal states
+unrepresentable" principle. So instead of using an `int` for the header level,
+I created a new single-case DU called `Int6`, representing (of course) an int
+between 1 and 6. That way, I cannot produce a HeaderNode value that isn't valid:
+illegal states have become unrepresentable. Therefore, once I'm past the parsing
+step, I no longer need to bother checking that the header level is valid: if I
+have a HeaderNode, then I *already* know that the level is valid.
+
+Anyone who's worked with F# for a while has probably already learned this, of
+course. But if you, who are reading this, haven't yet learned why this is so
+useful, go read the following article:
+
+https://fsharpforfunandprofit.com/posts/designing-with-types-making-illegal-states-unrepresentable/
+
+With this commit, the refactoring is now completely complete (to coin a phrase).
+I've created an AST to represent the Markdown nodes after parsing, and I would
+be able to use that AST to output in many different formats if necessary: HTML,
+RTF, PDF, LaTeX... The code is as simple as I can make it (the AST does add some
+complexity, which is why I decided not to use it in the "main" refactoring but
+to include it as a bonus step), and there's no significant code duplication
+anywhere. So this exercise is ready to submit.
